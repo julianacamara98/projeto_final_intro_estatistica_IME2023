@@ -1,0 +1,265 @@
+---
+title: "EDA - Dados de Crédito de Clientes de uma Instituição Financeira"
+author: "Grupo 10 - Gabriel Nascimento, Ana Elisa e Juliana Câmara"
+date: "2023-02-15"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+# 1. Contextualização    
+  
+O crédito financeiro desempenha um grande papel no desenvolvimento economico dos países, porém controlar um objeto não tangível requer uma série de análises de hábitos financeiros por parte das empresas. Para reduzir significamente o risco de default, algumas perguntas precisam ser respondidas com o máximo de precisão pelas instituições interessadas:
+  
+* 1. Qual a faixa salarial do grupo predominante?  
+* 2. Qual a quantidade média de emprestimos desses clientes?
+* 3. O salário líquido mensal pode influenciar de alguma forma nas taxas de juros que os clientes sofrem?
+* 4. Qual o percentual de compromentimento da renda com dívidas?
+
+# 2. Dataset
+
+```{r}
+dados = read.csv('credito_tratado.csv')
+```
+  
+O dataset escolhido traz informações sobre crédito de clientes de uma instituição financeira americana no período de dezembro/2022. Em seu formato original, o período de análise é maior e há repetições de um mesmo cliente em diversas entradas(atualizações), contando com 50.000 linhas e pode ser encontrado através deste [LINK](https://www.kaggle.com/datasets/parisrohan/credit-score-classification?datasetId=2289007&sortBy=dateRun&tab=bookmarked).  
+O dataset carregado acima já está tratado e sem valores faltantes.
+  
+As colunas(variáveis) contidas nesta base são:
+```{r}
+colnames(dados)
+```
+Onde:  
+   
+* 1."Customer_ID" -                 ID do Cliente    
+* 2."Month" -                       Mês do Ocorrência    
+* 3."Age" -                         Idade  
+* 4."Monthly_Inhand_Salary" -       Salário Líquido Mensal (USD)  
+* 5."Num_Bank_Accounts" -           Número de Contas Bancárias  
+* 6."Num_Credit_Card" -             Número de cartões de crédito   
+* 7."Interest_Rate" -               Taxa de Juros (%)  
+* 8."Num_of_Loan" -                 Número de Empréstimos  
+* 9."Type_of_Loan" -                Tipos de Empréstimos  
+* 10."Delay_from_due_date" -        Dias de Atraso da Fatura  
+* 11."Num_of_Delayed_Payment" -     Número de Empréstimos Atrasados  
+* 12."Outstanding_Debt" -           Valor da Dívida (USD)  
+* 13."Payment_of_Min_Amount" -      Pagamento do Mínimo da Fatura (SIM OU NÃO)  
+  
+Os tipos de variáveis contidas nesta base são:
+```{r}
+str(dados)
+```
+  
+Para viabilizar a visualização gráfica das varáveis, iremos tomar uma amostra de 388 observações. O critério utilizado foi a proporção de clientes por faixas salariais.
+```{r}
+#Verificando as medidas de posição da variável Salario Mensal para criar as classes
+summary(dados$Monthly_Inhand_Salary)
+```
+  
+Sabendo os valores mínimo e máximo da variável "Salário Líquido Mensal", podemos criar classes intervalares para agrupar os clientes.  
+```{r}
+dados$Classes_Salarios = cut(dados$Monthly_Inhand_Salary, breaks = c(0,2600,5200,7800,10400,13000,15600), include.lowest = TRUE,  labels = c("(0,2600]", "(2600,5200]", "(5200,7800]","(7800,10400]","(10400,13000]","(13000,15600]"))
+```
+  
+Aqui iremos verificar a frequência absoluta das classes para tomarmos observações aleatórias de cada uma que estejam na mesma proporção da base original.
+```{r}
+prop.table(table(dados$Classes_Salarios))
+#table(dados$Classes_Salarios))
+```
+  
+```{r}
+amostra1 = dados[sample(which(dados$Classes_Salarios == "(0,2600]"), 160),]
+```
+  
+```{r}
+amostra2 = dados[sample(which(dados$Classes_Salarios == "(2600,5200]"), 112),]
+```
+  
+```{r}
+amostra3 = dados[sample(which(dados$Classes_Salarios == "(5200,7800]"), 64),]
+```
+  
+```{r}
+amostra4 = dados[sample(which(dados$Classes_Salarios == "(7800,10400]"), 32),]
+```
+  
+```{r}
+amostra5 = dados[sample(which(dados$Classes_Salarios == "(10400,13000]"), 16),]
+```
+  
+```{r}
+amostra6 = dados[sample(which(dados$Classes_Salarios == "(13000,15600]"), 4),]
+```
+  
+```{r}
+# Concatenando as amostras em um único dataframe
+dados_amostrados = rbind(amostra1, amostra2, amostra3, amostra4, amostra5, amostra6)
+```
+  
+Agora podemos verificar a amostra que usaremos para as análises posteriores.
+```{r}
+str(dados_amostrados)
+```
+  
+  
+# 3. Análise Descritiva 
+## Medidas de posição e dispersão
+
+Através da função `summary` e `sd`, podemos ter as principais medidas de posição e desvio padrão das variáveis.
+```{r}
+#Obtendo algumas medidas de posição
+summary(dados_amostrados[,c("Age","Interest_Rate","Num_of_Loan")])
+```
+  
+```{r}
+#Obtendo o desvio padrão
+desvio_padrao =  apply(dados_amostrados[,c("Age","Interest_Rate","Num_of_Loan")], 2, sd)
+desvio_padrao  
+```
+  
+Outra forma de se obter informações sobre as variáveis é através de métodos gráficos.
+```{r}
+boxplot(list(Cartões_Crédito = dados_amostrados$Num_Credit_Card, Contas_Bancárias = dados_amostrados$Num_Bank_Accounts),
+        main = "Quantidade de Cartões e Contas Bancárias por Cliente",
+       ylab = "Frequência")
+```
+  
+```{r}
+#1. Histograma: Quantidade de Empréstimos Atrasados por Cliente
+  #1.1. Agrupando os valores em classes
+classes_num_of_delayed_payment = seq(0, 30, by = 5)
+```
+  
+```{r}
+  #1.2. Plotando o histograma a partir do agrupamento
+hist(dados_amostrados$Num_of_Delayed_Payment, breaks = classes_num_of_delayed_payment, main = "Nº de Empréstimos Atrasados por Cliente", xlab = "Intervalo de Valores", ylab = "Freq. de Clientes")
+```
+  
+```{r}
+#1. Histograma: Dias de Atraso da Fatura por Cliente
+  #1.1. Agrupando os valores em classes
+classes_delay_from_due_date = seq(0, 65, by = 13)
+```
+  
+```{r}
+  #1.2. Plotando o histograma a partir do agrupamento
+hist(dados_amostrados$Delay_from_due_date, breaks = classes_delay_from_due_date, main = "Dias em Atraso da Fatura por Cliente", xlab = "Intervalo de Valores", ylab = "Freq. de Clientes")
+```
+  
+```{r}
+#Boxplot: Salário Líquido Mensal em USD
+boxplot(dados_amostrados$Monthly_Inhand_Salary, main = "Distribuição do Salário Líquido Mensal", ylab = "Valor em USD")
+```
+  
+```{r}
+#Agrupando as faixas salariais por valor médio da dívida de cada uma
+agrupamento_por_divida = aggregate(dados_amostrados$Outstanding_Debt ~ dados_amostrados$Classes_Salarios, data = dados_amostrados, FUN = mean)
+agrupamento_por_divida
+```
+  
+```{r}
+barplot(agrupamento_por_divida$`dados_amostrados$Outstanding_Debt`, names.arg = agrupamento_por_divida$`dados_amostrados$Classes_Salarios`, main = "Valores Médios das Dívidas por Faixa Salarial", xlab = "Faixa Salarial", ylab = "Valor Médio da Dívida", col = "darkblue")
+```
+  
+## Associações
+  
+Aqui procuraremos associações entre as variáveis
+
+```{r}
+library("ggplot2")
+```
+
+```{r}
+grafico = ggplot(data = dados_amostrados, aes(x = Monthly_Inhand_Salary, y = Interest_Rate))
+grafico + geom_point() + geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Salário Líquido Mensal", y = "Taxa de Juros")
+```
+  
+    
+Através do gráfico acima é possível verificar uma certa associação entre "Salário Líquido Mensal" e "Taxa de Juros". Porém, se trata de uma associação negativa e fraca, ou seja, os clientes com os menores salários sofrem com mais juros em relação á clientes com salários maiores.  
+Para entender um pouco melhor essa relação, chamamos a função `cor`para gerar um coeficiente de correlação de Person.
+```{r}
+cor(dados_amostrados$Monthly_Inhand_Salary, dados_amostrados$Interest_Rate)
+```
+  
+Para conhecer um pouco mais sobre a associação de outras variáveis com o "Salário Mensal", geramos mais um gráfico com a variável "Valor da dívida"  
+```{r}
+grafico2 = ggplot(data = dados_amostrados, aes(x = Monthly_Inhand_Salary, y = Outstanding_Debt))
+grafico2 + geom_point() + geom_smooth(method = "lm", se = FALSE) +
+  labs(x = "Salário Líquido Mensal", y = "Valor da Dívida")
+```
+  
+E novamente, analisaremos em conjunto com o coeficiente de correlação de Pearson.
+```{r}
+cor(dados_amostrados$Delay_from_due_date, dados_amostrados$Outstanding_Debt)
+```
+
+Uma das variáveis desta base que sabemos que pode ter ligação com a taxa de juros é se o cliente pagou o mínimo da fatura ou não. Por isso, geramos uma tabela de contingência entre as variáveis "Classes Salariais" e "Pagamento Mínimo da Fatura" para conhecer melhor o comportamento dos dados desses clientes.
+```{r}
+#Cruzando faixas salariais com pagamento mínimo da fatura
+table(dados_amostrados$Classes_Salarios, dados_amostrados$Payment_of_Min_Amount)
+```
+  
+    
+# 4. Análise Inferencial
+  
+## Teste de Shapiro-Wilk  
+  
+Para trabalharmos com técnicas inferenciais, é interessante conhecer a distribuição dos dados em estudo. A distribuição normal permite a aplicação de diversos métodos e, para testarmos se as variáveis em questão seguem distribuição normal, aplicaremos o teste de Shapiro-Wilk.  
+  
+O teste de Shapiro-Wilk é um teste estatístico que verifica se uma determinada amostra de dados segue uma distribuição normal ou não.  
+No R, o teste de Shapiro-Wilk pode ser aplicado usando a função `shapiro.test`. Esta função recebe como entrada um vetor de dados e retorna o resultado do teste, incluindo o valor da estatística de teste e o valor-p.  
+Se o valor-p for maior do que o nível de significância (geralmente 0,05), então não podemos rejeitar a hipótese nula de que a amostra segue uma distribuição normal. Por outro lado, se o valor-p for menor do que o nível de significância, então podemos rejeitar a hipótese nula e concluir que a amostra não segue uma distribuição normal.  
+  
+```{r}
+shapiro.test(dados_amostrados$Outstanding_Debt)
+```
+  
+  
+  
+## Intervalo de confiança para estimação da média com distribuição e desvio padrão populacionais desconhecidos.
+
+
+```{r}
+# Calculando a média e o desvio padrão da amostra
+media_amostral = mean(dados_amostrados$Monthly_Inhand_Salary)
+desvio_padrao_amostral = sd(dados_amostrados$Monthly_Inhand_Salary)
+```
+  
+```{r}
+# Definindo o nível de confiança 
+confianca = 0.95
+```
+  
+```{r}
+# Calculando o tamanho da amostra
+n = length(dados_amostrados$Monthly_Inhand_Salary)
+```
+
+```{r}
+# Calculando o erro padrão da média
+erro_padrao = desvio_padrao_amostral / sqrt(n)
+```
+  
+```{r}
+# Calculando o valor crítico t para o nível de confiança desejado e (n-1) graus de liberdade
+valor_critico = qt((1 - confianca) / 2, df = n - 1)
+```
+  
+```{r}
+# Calculando os limites inferior e superior do intervalo de confiança
+limite_inferior = media_amostral - valor_critico * erro_padrao
+limite_superior = media_amostral + valor_critico * erro_padrao
+```
+  
+```{r}
+# Resultado do intervalo de confiança
+cat("O intervalo de confiança de", confianca * 100, "% para a média populacional é [", round(limite_inferior, 2), ", ", round(limite_superior, 2), "].\n")
+```
+
+
+
+
+
+
+
